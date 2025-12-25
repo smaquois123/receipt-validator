@@ -15,6 +15,8 @@ struct ReceiptCaptureView: View {
     
     @StateObject private var scanner = ReceiptScannerService()
     
+    @State private var selectedRetailer: RetailerType?
+    @State private var showRetailerSelection = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var receiptImage: UIImage?
     @State private var showCamera = false
@@ -28,6 +30,49 @@ struct ReceiptCaptureView: View {
                     // Show captured/selected image
                     ScrollView {
                         VStack(spacing: 16) {
+                            // Retailer selection badge
+                            if let retailer = selectedRetailer {
+                                HStack {
+                                    Image(systemName: retailer.iconName)
+                                        .foregroundStyle(retailer.color)
+                                    Text(retailer.displayName)
+                                        .font(.headline)
+                                    Spacer()
+                                    Button("Change") {
+                                        showRetailerSelection = true
+                                    }
+                                    .font(.subheadline)
+                                }
+                                .padding()
+                                .background {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(retailer.color.opacity(0.1))
+                                }
+                                .padding(.horizontal)
+                            } else {
+                                // Prompt to select retailer
+                                Button {
+                                    showRetailerSelection = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "cart.badge.questionmark")
+                                            .foregroundStyle(.orange)
+                                        Text("Select Retailer")
+                                            .font(.headline)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding()
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(.orange.opacity(0.1))
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                            
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFit()
@@ -107,6 +152,7 @@ struct ReceiptCaptureView: View {
                                 await scanReceipt()
                             }
                         }
+                        .disabled(selectedRetailer == nil)
                     }
                 }
             }
@@ -114,6 +160,9 @@ struct ReceiptCaptureView: View {
                 CameraView { image in
                     receiptImage = image
                 }
+            }
+            .sheet(isPresented: $showRetailerSelection) {
+                RetailerSelectionView(selectedRetailer: $selectedRetailer)
             }
             .navigationDestination(isPresented: $showResults) {
                 if let scannedData = scannedData {
@@ -132,13 +181,20 @@ struct ReceiptCaptureView: View {
                 }
             }
         }
+        .onChange(of: receiptImage) { oldValue, newValue in
+            // Show retailer selection when image is first set
+            if oldValue == nil && newValue != nil && selectedRetailer == nil {
+                showRetailerSelection = true
+            }
+        }
     }
     
     private func scanReceipt() async {
-        guard let image = receiptImage else { return }
+        guard let image = receiptImage,
+              let retailer = selectedRetailer else { return }
         
         do {
-            let data = try await scanner.scanReceipt(from: image)
+            let data = try await scanner.scanReceipt(from: image, retailer: retailer)
             scannedData = data
             showResults = true
         } catch {

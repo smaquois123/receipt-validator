@@ -16,7 +16,7 @@ class ReceiptScannerService: ObservableObject {
     @Published var errorMessage: String?
     
     /// Scans a receipt image and extracts text using Vision framework
-    func scanReceipt(from image: UIImage) async throws -> ScannedReceiptData {
+    func scanReceipt(from image: UIImage, retailer: RetailerType) async throws -> ScannedReceiptData {
         isProcessing = true
         defer { isProcessing = false }
         
@@ -25,7 +25,7 @@ class ReceiptScannerService: ObservableObject {
         }
         
         let extractedText = try await recognizeText(from: cgImage)
-        let parsedData = parseReceiptText(extractedText)
+        let parsedData = parseReceiptText(extractedText, retailer: retailer)
         
         return parsedData
     }
@@ -66,9 +66,9 @@ class ReceiptScannerService: ObservableObject {
     }
     
     /// Parses the extracted text into structured receipt data
-    private func parseReceiptText(_ text: String) -> ScannedReceiptData {
+    private func parseReceiptText(_ text: String, retailer: RetailerType) -> ScannedReceiptData {
         // Use enhanced parser with store-specific logic
-        return ReceiptParser.parse(text)
+        return ReceiptParser.parse(text, retailer: retailer)
     }
 }
 

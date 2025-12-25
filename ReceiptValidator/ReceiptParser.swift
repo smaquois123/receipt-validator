@@ -11,13 +11,13 @@ import Foundation
 struct ReceiptParser {
     
     /// Parses raw OCR text into structured data with store-specific rules
-    static func parse(_ text: String) -> ScannedReceiptData {
+    static func parse(_ text: String, retailer: RetailerType? = nil) -> ScannedReceiptData {
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         
-        // Detect store
-        let store = detectStore(from: lines)
+        // Use provided retailer or detect store
+        let store = retailer ?? detectStore(from: lines)
         
         // Parse based on store format
         switch store {
@@ -306,7 +306,7 @@ struct ReceiptParser {
 
 // MARK: - Retailer Types
 
-enum RetailerType {
+enum RetailerType: Hashable {
     case walmart
     case target
     case costco
