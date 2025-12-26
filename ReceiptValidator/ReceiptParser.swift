@@ -70,6 +70,7 @@ struct ReceiptParser {
         
         for line in lines {
             // Skip header/footer lines
+            //if line.index(before: "6")
             if line.lowercased().contains("walmart") ||
                line.lowercased().contains("save money") ||
                line.lowercased().contains("thank you") {

@@ -145,6 +145,16 @@ struct ReceiptCaptureView: View {
                     }
                 }
                 
+                if receiptImage != nil {
+                    ToolbarItem(placement: .secondaryAction) {
+                        Button {
+                            showRetailerSelection = true
+                        } label: {
+                            Label("Select Retailer", systemImage: "cart")
+                        }
+                    }
+                }
+                
                 if receiptImage != nil && !scanner.isProcessing {
                     ToolbarItem(placement: .primaryAction) {
                         Button("Scan") {
@@ -163,6 +173,7 @@ struct ReceiptCaptureView: View {
             }
             .sheet(isPresented: $showRetailerSelection) {
                 RetailerSelectionView(selectedRetailer: $selectedRetailer)
+                    .presentationDetents([.medium, .large])
             }
             .navigationDestination(isPresented: $showResults) {
                 if let scannedData = scannedData {
@@ -184,7 +195,10 @@ struct ReceiptCaptureView: View {
         .onChange(of: receiptImage) { oldValue, newValue in
             // Show retailer selection when image is first set
             if oldValue == nil && newValue != nil && selectedRetailer == nil {
-                showRetailerSelection = true
+                // Use a small delay to ensure the sheet presentation happens after the photo picker dismisses
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showRetailerSelection = true
+                }
             }
         }
     }
