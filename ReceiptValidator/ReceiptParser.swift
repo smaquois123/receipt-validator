@@ -69,8 +69,14 @@ struct ReceiptParser {
         var total: Double?
         
         for line in lines {
-            // Skip header/footer lines
-            //if line.index(before: "6")
+            // Skip header/footer and non-item lines common to Walmart receipts
+            let lc = line.lowercased()
+            // Skip very short lines, separators, and lines that are mostly numbers or punctuation
+            if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+               line.count < 9 ||
+               line.allSatisfy({ $0.isNumber || $0.isWhitespace || "-—=*_#".contains($0) }) {
+                continue
+            }
             if line.lowercased().contains("walmart") ||
                line.lowercased().contains("save money") ||
                line.lowercased().contains("thank you") {
@@ -336,3 +342,4 @@ enum RetailerType: Hashable {
         }
     }
 }
+
