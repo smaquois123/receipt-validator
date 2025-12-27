@@ -68,46 +68,80 @@ struct ReceiptParser {
         var items: [ScannedItem] = []
         var total: Double?
         
-        for line in lines {
-            // Skip header/footer and non-item lines common to Walmart receipts
-            let lc = line.lowercased()
-            // Skip very short lines, separators, and lines that are mostly numbers or punctuation
-            if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-               line.count < 9 ||
-               line.allSatisfy({ $0.isNumber || $0.isWhitespace || "-—=*_#".contains($0) }) {
-                continue
-            }
-            if line.lowercased().contains("walmart") ||
-               line.lowercased().contains("save money") ||
-               line.lowercased().contains("thank you") {
+        // Walmart receipt pattern (tokens on separate lines):
+        // GREAT
+        // VALUE
+        // SUGAR
+        // 001234567890  <- SKU/UPC (8-14 digits)
+        // 12.99         <- Price
+        
+        var i = 0
+        var itemNameTokens: [String] = []
+        
+        while i < lines.count {
+            let token = lines[i]
+            let lowercased = token.lowercased()
+            
+            // Skip header/footer tokens
+            if lowercased.contains("walmart") || 
+               lowercased.contains("wal-mart") ||
+               lowercased.contains("save") ||
+               lowercased.contains("money") ||
+               lowercased.contains("live") ||
+               lowercased.contains("better") {
+                i += 1
                 continue
             }
             
-            // Extract total
-            if line.lowercased().contains("total") {
-                if let price = extractPrice(from: line) {
+            // Check for total
+            if lowercased.contains("total") && !lowercased.contains("subtotal") {
+                // Look ahead for price
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
                     total = price
                 }
+                i += 1
                 continue
             }
             
-            // Skip tax lines
-            if line.lowercased().contains("tax") {
+            // Skip tax, subtotal, etc.
+            if lowercased.contains("tax") || lowercased.contains("subtotal") {
+                i += 1
                 continue
             }
             
-            // Parse item line: "ITEM NAME 001234567890 12.99"
-            // Walmart format: Item name, then item number (UPC/SKU), then price
-            if let price = extractPrice(from: line) {
-                var name = removePriceFromLine(line)
-                
-                // Remove item numbers (typically 10-13 digits for UPC codes)
-                name = removeItemNumber(from: name)
-                
-                if !name.isEmpty && name.count > 2 {
-                    items.append(ScannedItem(name: name, price: price))
+            // Check if this token is a SKU (8-14 digits)
+            if isSKU(token) {
+                // Look ahead for price on next line
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
+                    // We have a complete item: name tokens + SKU + price
+                    if !itemNameTokens.isEmpty {
+                        let itemName = itemNameTokens.joined(separator: " ")
+                        items.append(ScannedItem(name: itemName, price: price, sku: token))
+                        itemNameTokens.removeAll()
+                    }
+                    i += 2 // Skip SKU and price
+                    continue
                 }
             }
+            
+            // Check if this token is a price (without a preceding SKU)
+            if let price = extractPrice(from: token) {
+                // Item without SKU
+                if !itemNameTokens.isEmpty {
+                    let itemName = itemNameTokens.joined(separator: " ")
+                    items.append(ScannedItem(name: itemName, price: price, sku: nil))
+                    itemNameTokens.removeAll()
+                }
+                i += 1
+                continue
+            }
+            
+            // Otherwise, it's likely part of an item name
+            if !token.isEmpty && token.count > 1 {
+                itemNameTokens.append(token)
+            }
+            
+            i += 1
         }
         
         return ScannedReceiptData(
@@ -124,24 +158,65 @@ struct ReceiptParser {
         var items: [ScannedItem] = []
         var total: Double?
         
-        for line in lines {
-            if line.lowercased().contains("target") {
+        // Target format similar to Walmart but may have different SKU patterns
+        var i = 0
+        var itemNameTokens: [String] = []
+        
+        while i < lines.count {
+            let token = lines[i]
+            let lowercased = token.lowercased()
+            
+            // Skip header
+            if lowercased.contains("target") {
+                i += 1
                 continue
             }
             
-            if line.lowercased().contains("total") {
-                if let price = extractPrice(from: line) {
+            // Check for total
+            if lowercased.contains("total") && !lowercased.contains("subtotal") {
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
                     total = price
                 }
+                i += 1
                 continue
             }
             
-            if let price = extractPrice(from: line) {
-                let name = removePriceFromLine(line)
-                if !name.isEmpty {
-                    items.append(ScannedItem(name: name, price: price))
+            // Skip tax
+            if lowercased.contains("tax") || lowercased.contains("subtotal") {
+                i += 1
+                continue
+            }
+            
+            // Check for SKU
+            if isSKU(token) {
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
+                    if !itemNameTokens.isEmpty {
+                        let itemName = itemNameTokens.joined(separator: " ")
+                        items.append(ScannedItem(name: itemName, price: price, sku: token))
+                        itemNameTokens.removeAll()
+                    }
+                    i += 2
+                    continue
                 }
             }
+            
+            // Check for price
+            if let price = extractPrice(from: token) {
+                if !itemNameTokens.isEmpty {
+                    let itemName = itemNameTokens.joined(separator: " ")
+                    items.append(ScannedItem(name: itemName, price: price, sku: nil))
+                    itemNameTokens.removeAll()
+                }
+                i += 1
+                continue
+            }
+            
+            // Accumulate name tokens
+            if !token.isEmpty && token.count > 1 {
+                itemNameTokens.append(token)
+            }
+            
+            i += 1
         }
         
         return ScannedReceiptData(
@@ -158,32 +233,71 @@ struct ReceiptParser {
         var items: [ScannedItem] = []
         var total: Double?
         
-        // Costco format often has item numbers
-        for line in lines {
-            if line.lowercased().contains("costco") {
+        // Costco format with item numbers
+        var i = 0
+        var itemNameTokens: [String] = []
+        
+        while i < lines.count {
+            let token = lines[i]
+            let lowercased = token.lowercased()
+            
+            // Skip header
+            if lowercased.contains("costco") {
+                i += 1
                 continue
             }
             
-            if line.lowercased().contains("total") {
-                if let price = extractPrice(from: line) {
+            // Check for total
+            if lowercased.contains("total") && !lowercased.contains("subtotal") {
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
                     total = price
                 }
+                i += 1
                 continue
             }
             
-            // Skip lines that are ONLY numbers (membership numbers, etc.)
-            // But don't skip lines that start with numbers and have more content
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            if trimmedLine.count < 10 && trimmedLine.allSatisfy({ $0.isNumber || $0.isWhitespace }) {
+            // Skip tax, membership numbers
+            if lowercased.contains("tax") || lowercased.contains("subtotal") || lowercased.contains("member") {
+                i += 1
                 continue
             }
             
-            if let price = extractPrice(from: line) {
-                let name = removePriceFromLine(line)
-                if !name.isEmpty {
-                    items.append(ScannedItem(name: name, price: price))
+            // Skip pure numeric lines (membership IDs, etc.) that are short
+            if token.count < 10 && token.allSatisfy({ $0.isNumber || $0.isWhitespace }) {
+                i += 1
+                continue
+            }
+            
+            // Check for SKU
+            if isSKU(token) {
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
+                    if !itemNameTokens.isEmpty {
+                        let itemName = itemNameTokens.joined(separator: " ")
+                        items.append(ScannedItem(name: itemName, price: price, sku: token))
+                        itemNameTokens.removeAll()
+                    }
+                    i += 2
+                    continue
                 }
             }
+            
+            // Check for price
+            if let price = extractPrice(from: token) {
+                if !itemNameTokens.isEmpty {
+                    let itemName = itemNameTokens.joined(separator: " ")
+                    items.append(ScannedItem(name: itemName, price: price, sku: nil))
+                    itemNameTokens.removeAll()
+                }
+                i += 1
+                continue
+            }
+            
+            // Accumulate name tokens
+            if !token.isEmpty && token.count > 1 {
+                itemNameTokens.append(token)
+            }
+            
+            i += 1
         }
         
         return ScannedReceiptData(
@@ -206,39 +320,73 @@ struct ReceiptParser {
             storeName = firstLine
         }
         
-        for line in lines {
-            // Skip common non-item lines
-            let lowercased = line.lowercased()
+        var i = 0
+        var itemNameTokens: [String] = []
+        
+        while i < lines.count {
+            let token = lines[i]
+            let lowercased = token.lowercased()
+            
+            // Skip common non-item tokens
             if lowercased.contains("thank you") ||
                lowercased.contains("receipt") ||
                lowercased.contains("cashier") ||
                lowercased.contains("store #") ||
-               line.contains("****") ||
-               line.contains("====") {
+               token.contains("****") ||
+               token.contains("====") {
+                i += 1
                 continue
             }
             
             // Extract total
             if lowercased.contains("total") && !lowercased.contains("subtotal") {
-                if let price = extractPrice(from: line) {
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
                     total = price
                 }
+                i += 1
                 continue
             }
             
             // Skip tax lines
             if lowercased.contains("tax") {
+                i += 1
                 continue
             }
             
-            // Parse items
-            if let price = extractPrice(from: line) {
-                let name = removePriceFromLine(line)
-                // Filter out lines that are likely not items
-                if !name.isEmpty && name.count > 2 && name.count < 100 {
-                    items.append(ScannedItem(name: name, price: price))
+            // Check for SKU
+            if isSKU(token) {
+                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
+                    if !itemNameTokens.isEmpty {
+                        let itemName = itemNameTokens.joined(separator: " ")
+                        if itemName.count > 2 && itemName.count < 100 {
+                            items.append(ScannedItem(name: itemName, price: price, sku: token))
+                        }
+                        itemNameTokens.removeAll()
+                    }
+                    i += 2
+                    continue
                 }
             }
+            
+            // Check for price
+            if let price = extractPrice(from: token) {
+                if !itemNameTokens.isEmpty {
+                    let itemName = itemNameTokens.joined(separator: " ")
+                    if itemName.count > 2 && itemName.count < 100 {
+                        items.append(ScannedItem(name: itemName, price: price, sku: nil))
+                    }
+                    itemNameTokens.removeAll()
+                }
+                i += 1
+                continue
+            }
+            
+            // Accumulate name tokens
+            if !token.isEmpty && token.count > 1 {
+                itemNameTokens.append(token)
+            }
+            
+            i += 1
         }
         
         return ScannedReceiptData(
@@ -250,6 +398,13 @@ struct ReceiptParser {
     }
     
     // MARK: - Helper Methods
+    
+    private static func isSKU(_ token: String) -> Bool {
+        // Check if token is a valid SKU/UPC (8-14 digits, possibly with dashes)
+        let digitsOnly = token.filter { $0.isNumber }
+        return digitsOnly.count >= 8 && digitsOnly.count <= 14 && 
+               Double(digitsOnly.count) / Double(token.count) > 0.8 // At least 80% digits
+    }
     
     private static func extractPrice(from line: String) -> Double? {
         // Patterns to match: $12.99, 12.99, $1.99, 1.99

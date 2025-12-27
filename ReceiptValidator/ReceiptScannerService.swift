@@ -44,8 +44,13 @@ class ReceiptScannerService: ObservableObject {
                     return
                 }
                 
-                let recognizedText = observations.compactMap { observation in
-                    observation.topCandidates(1).first?.string
+                // Group observations by their vertical position to preserve line structure
+                let grouped = self.groupObservationsByLine(observations)
+                
+                // Join words on same line with space, different lines with newline
+                let recognizedText = grouped.map { line in
+                    line.map { $0.topCandidates(1).first?.string ?? "" }
+                        .joined(separator: " ")
                 }.joined(separator: "\n")
                 
                 continuation.resume(returning: recognizedText)
@@ -63,6 +68,49 @@ class ReceiptScannerService: ObservableObject {
                 continuation.resume(throwing: error)
             }
         }
+    }
+    
+    /// Groups text observations by their vertical position to identify which words are on the same line
+    private func groupObservationsByLine(_ observations: [VNRecognizedTextObservation]) -> [[VNRecognizedTextObservation]] {
+        // Sort by Y coordinate (top to bottom - Y increases downward in Vision coordinates)
+        let sorted = observations.sorted { $0.boundingBox.midY > $1.boundingBox.midY }
+        
+        var lines: [[VNRecognizedTextObservation]] = []
+        var currentLine: [VNRecognizedTextObservation] = []
+        var lastMidY: CGFloat?
+        
+        for observation in sorted {
+            let currentMidY = observation.boundingBox.midY
+            
+            if let lastY = lastMidY {
+                // Calculate threshold based on bounding box height
+                // If observations are within 50% of height difference, consider them on the same line
+                let threshold = observation.boundingBox.height * 0.5
+                
+                // If Y difference is small enough, they're on the same line
+                if abs(currentMidY - lastY) < threshold {
+                    currentLine.append(observation)
+                } else {
+                    // Start new line
+                    if !currentLine.isEmpty {
+                        // Sort current line by X coordinate (left to right)
+                        lines.append(currentLine.sorted { $0.boundingBox.minX < $1.boundingBox.minX })
+                    }
+                    currentLine = [observation]
+                }
+            } else {
+                currentLine.append(observation)
+            }
+            
+            lastMidY = currentMidY
+        }
+        
+        // Add the last line
+        if !currentLine.isEmpty {
+            lines.append(currentLine.sorted { $0.boundingBox.minX < $1.boundingBox.minX })
+        }
+        
+        return lines
     }
     
     /// Parses the extracted text into structured receipt data
@@ -84,6 +132,13 @@ struct ScannedReceiptData {
 struct ScannedItem {
     var name: String
     var price: Double
+    var sku: String?
+    
+    init(name: String, price: Double, sku: String? = nil) {
+        self.name = name
+        self.price = price
+        self.sku = sku
+    }
 }
 
 enum ScannerError: LocalizedError {

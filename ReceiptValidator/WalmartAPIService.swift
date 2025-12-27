@@ -191,7 +191,7 @@ extension PriceComparisonService {
  
  1. Use third-party APIs:
     - Rainforest API (https://www.rainforestapi.com)
-    - SerpAPI (https://serpapi.com)
+    - SerpAPI (https://serpapi.com) api key = 94deb564d802d01f867dece452ceec114961c634470d445872ed9ea1e68f0b50
     - Oxylabs (https://oxylabs.io)
  
  2. Implement with other retailer APIs:
