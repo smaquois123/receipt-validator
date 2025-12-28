@@ -76,24 +76,44 @@ struct ReceiptParser {
         // 12.99         <- Price
         
         var i = 0
-        var itemNameTokens: [String] = []
+        //var itemNameTokens: [String] = []
         
         while i < lines.count {
             let token = lines[i]
-            let lowercased = token.lowercased()
-            
-            // Skip header/footer tokens
-            if lowercased.contains("walmart") || 
-               lowercased.contains("wal-mart") ||
-               lowercased.contains("save") ||
-               lowercased.contains("money") ||
-               lowercased.contains("live") ||
-               lowercased.contains("better") {
+            if (i==3 || i==4){
                 i += 1
                 continue
             }
+            let lowercased = token.lowercased()
+            
+            // Skip unnecessary lines
+            if lowercased.contains("walmart") ||
+               lowercased.contains("wal-mart") ||
+               lowercased.contains("save money") ||
+               lowercased.contains("mgr") ||
+               lowercased.contains("st#") ||
+               lowercased.contains("tend") ||
+               lowercased.contains("account") ||
+               lowercased.contains("xref") ||
+               lowercased.contains("approval") ||
+               lowercased.contains("trans") ||
+               lowercased.contains("validation") ||
+               lowercased.contains("required") ||
+               lowercased.contains("terminal #") ||
+               lowercased.contains("change due") ||
+               lowercased.contains("items sold") ||
+               lowercased.contains("tc#") ||
+               lowercased.contains("low prices") ||
+               lowercased.contains("tax") ||
+               lowercased.contains("total") ||
+               lowercased.contains("subtotal") ||
+               isDateOrTime(lowercased) { // Skip date/time lines
+               i += 1
+               continue
+            }
             
             // Check for total
+            /*
             if lowercased.contains("total") && !lowercased.contains("subtotal") {
                 // Look ahead for price
                 if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
@@ -102,14 +122,27 @@ struct ReceiptParser {
                 i += 1
                 continue
             }
+            */
+            let lineElements = lowercased.split(separator: " ")
+
+            //print(lineElements)
             
-            // Skip tax, subtotal, etc.
-            if lowercased.contains("tax") || lowercased.contains("subtotal") {
-                i += 1
-                continue
+            var c = 0
+            var itemName: String = ""
+            var itemSku: String = ""
+            var itemPrice: Double? = nil
+            while c < lineElements.count {
+                if Double(lineElements[c]) != nil {
+                    itemPrice = Double(lineElements[c])!
+                    c += 1
+                    continue
+                }
+                itemName += String(lineElements[c]) + " "
+                c += 1
             }
-            
+            print (itemName, itemPrice)
             // Check if this token is a SKU (8-14 digits)
+            /*
             if isSKU(token) {
                 // Look ahead for price on next line
                 if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
@@ -140,8 +173,9 @@ struct ReceiptParser {
             if !token.isEmpty && token.count > 1 {
                 itemNameTokens.append(token)
             }
-            
+             */
             i += 1
+            
         }
         
         return ScannedReceiptData(
@@ -167,7 +201,7 @@ struct ReceiptParser {
             let lowercased = token.lowercased()
             
             // Skip header
-            if lowercased.contains("target") {
+            if lowercased.contains("target") || isDateOrTime(token) {
                 i += 1
                 continue
             }
@@ -182,7 +216,7 @@ struct ReceiptParser {
             }
             
             // Skip tax
-            if lowercased.contains("tax") || lowercased.contains("subtotal") {
+            if lowercased.contains("tax") || lowercased.contains("subtotal") || isDateOrTime(token) {
                 i += 1
                 continue
             }
@@ -242,7 +276,7 @@ struct ReceiptParser {
             let lowercased = token.lowercased()
             
             // Skip header
-            if lowercased.contains("costco") {
+            if lowercased.contains("costco") || isDateOrTime(token) {
                 i += 1
                 continue
             }
@@ -257,7 +291,7 @@ struct ReceiptParser {
             }
             
             // Skip tax, membership numbers
-            if lowercased.contains("tax") || lowercased.contains("subtotal") || lowercased.contains("member") {
+            if lowercased.contains("tax") || lowercased.contains("subtotal") || lowercased.contains("member") || isDateOrTime(token) {
                 i += 1
                 continue
             }
@@ -333,7 +367,8 @@ struct ReceiptParser {
                lowercased.contains("cashier") ||
                lowercased.contains("store #") ||
                token.contains("****") ||
-               token.contains("====") {
+               token.contains("====") ||
+               isDateOrTime(token) { // Skip date/time lines
                 i += 1
                 continue
             }
@@ -348,7 +383,7 @@ struct ReceiptParser {
             }
             
             // Skip tax lines
-            if lowercased.contains("tax") {
+            if lowercased.contains("tax") || isDateOrTime(token) {
                 i += 1
                 continue
             }
@@ -398,6 +433,51 @@ struct ReceiptParser {
     }
     
     // MARK: - Helper Methods
+    
+    private static func isDateOrTime(_ string: String) -> Bool {
+            
+        // Common receipt date/time formats
+        let formats = [
+            // Date formats
+            "MM/dd/yyyy",
+            "MM/dd/yy",
+            "yyyy-MM-dd",
+            "dd/MM/yyyy",
+            "dd-MM-yyyy",
+            "M/d/yyyy",
+            "M/d/yy",
+            "MMM dd yyyy",
+            "MMM dd, yyyy",
+            "MMMM dd, yyyy",
+            // Time formats
+            "HH:mm:ss",
+            "HH:mm",
+            "h:mm a",
+            "h:mm:ss a",
+            "h:mma",
+            "HH:mm:ss a"
+        ]
+        
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        let dateElements = string.split(separator: " ")
+        
+        for format in formats {
+            formatter.dateFormat = format
+            if formatter.date(from: String(dateElements[0])) != nil {
+                return true
+            }
+        }
+        
+        // Also check for common time patterns with regex
+        let timePattern = #"^\d{1,2}:\d{2}(:\d{2})?(\s?[AaPp][Mm])?$"#
+        if String(dateElements[1]).range(of: timePattern, options: .regularExpression) != nil {
+            return true
+        }
+        
+        return false
+    }
     
     private static func isSKU(_ token: String) -> Bool {
         // Check if token is a valid SKU/UPC (8-14 digits, possibly with dashes)
