@@ -132,15 +132,23 @@ struct ReceiptParser {
             var itemSku: String = ""
             var itemPrice: Double? = nil
             while c < lineElements.count {
-                if Double(lineElements[c]) != nil {
-                    itemPrice = Double(lineElements[c])!
+                if lineElements[c].contains("."){
+                   itemPrice = Double(lineElements[c])!
                     c += 1
                     continue
+                }else{
+                    if Double(lineElements[c]) != nil {
+                        itemSku = String(lineElements[c])
+                        c += 1
+                        continue
+                    }else{
+                        itemName += String(lineElements[c])
+                        c += 1
+                        continue
+                    }
                 }
-                itemName += String(lineElements[c]) + " "
-                c += 1
             }
-            print (itemName, itemPrice)
+            print (itemName, itemSku, itemPrice)
             // Check if this token is a SKU (8-14 digits)
             /*
             if isSKU(token) {
