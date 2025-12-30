@@ -142,48 +142,18 @@ struct ReceiptParser {
                         c += 1
                         continue
                     }else{
+                        if lineElements[c].count == 1 {
+                            c += 1
+                            continue
+                        }
                         itemName += String(lineElements[c])
                         c += 1
                         continue
                     }
                 }
             }
-            print (itemName, itemSku, itemPrice)
-            // Check if this token is a SKU (8-14 digits)
-            /*
-            if isSKU(token) {
-                // Look ahead for price on next line
-                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
-                    // We have a complete item: name tokens + SKU + price
-                    if !itemNameTokens.isEmpty {
-                        let itemName = itemNameTokens.joined(separator: " ")
-                        items.append(ScannedItem(name: itemName, price: price, sku: token))
-                        itemNameTokens.removeAll()
-                    }
-                    i += 2 // Skip SKU and price
-                    continue
-                }
-            }
-            
-            // Check if this token is a price (without a preceding SKU)
-            if let price = extractPrice(from: token) {
-                // Item without SKU
-                if !itemNameTokens.isEmpty {
-                    let itemName = itemNameTokens.joined(separator: " ")
-                    items.append(ScannedItem(name: itemName, price: price, sku: nil))
-                    itemNameTokens.removeAll()
-                }
-                i += 1
-                continue
-            }
-            
-            // Otherwise, it's likely part of an item name
-            if !token.isEmpty && token.count > 1 {
-                itemNameTokens.append(token)
-            }
-             */
+            print (itemName, itemSku, itemPrice as Any)
             i += 1
-            
         }
         
         return ScannedReceiptData(
