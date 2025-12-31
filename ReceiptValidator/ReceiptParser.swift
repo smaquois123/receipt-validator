@@ -68,25 +68,20 @@ struct ReceiptParser {
         var items: [ScannedItem] = []
         var total: Double?
         
-        // Walmart receipt pattern (tokens on separate lines):
-        // GREAT
-        // VALUE
-        // SUGAR
-        // 001234567890  <- SKU/UPC (8-14 digits)
-        // 12.99         <- Price
-        
         var i = 0
-        //var itemNameTokens: [String] = []
         
         while i < lines.count {
-            let token = lines[i]
-            if (i==3 || i==4){
+            let token = lines[i].trimmingCharacters(in: .whitespaces)
+            
+            // Skip empty lines
+            guard !token.isEmpty else {
                 i += 1
                 continue
             }
+            
             let lowercased = token.lowercased()
             
-            // Skip unnecessary lines
+            // Skip header/footer lines
             if lowercased.contains("walmart") ||
                lowercased.contains("wal-mart") ||
                lowercased.contains("save money") ||
