@@ -100,6 +100,7 @@ struct ReceiptParser {
                lowercased.contains("tc#") ||
                lowercased.contains("low prices") ||
                lowercased.contains("subtotal") ||
+               lowercased.contains("tax") ||
                isDateOrTime(lowercased) {
                 i += 1
                 continue
