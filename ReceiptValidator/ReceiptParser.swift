@@ -99,55 +99,76 @@ struct ReceiptParser {
                lowercased.contains("items sold") ||
                lowercased.contains("tc#") ||
                lowercased.contains("low prices") ||
-               lowercased.contains("tax") ||
-               lowercased.contains("total") ||
                lowercased.contains("subtotal") ||
-               isDateOrTime(lowercased) { // Skip date/time lines
-               i += 1
-               continue
+               isDateOrTime(lowercased) {
+                i += 1
+                continue
             }
             
             // Check for total
-            /*
             if lowercased.contains("total") && !lowercased.contains("subtotal") {
-                // Look ahead for price
-                if i + 1 < lines.count, let price = extractPrice(from: lines[i + 1]) {
-                    total = price
+                // Extract price from same line
+                let components = token.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+                for component in components {
+                    if let price = Double(component.filter { $0.isNumber || $0 == "." }) {
+                        total = price
+                        break
+                    }
                 }
                 i += 1
                 continue
             }
-            */
-            let lineElements = lowercased.split(separator: " ")
-
-            //print(lineElements)
             
-            var c = 0
-            var itemName: String = ""
+            // Parse item line
+            // Format: ITEM NAME SKU(12-digits) LETTER PRICE LETTER
+            let components = token.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            
+            var itemNameParts: [String] = []
             var itemSku: String = ""
-            var itemPrice: Double? = nil
-            while c < lineElements.count {
-                if lineElements[c].contains("."){
-                   itemPrice = Double(lineElements[c])!
-                    c += 1
+            var itemPrice: Double?
+            
+            for component in components {
+                // Check if it's a SKU (12 digits - Walmart standard)
+                let digitsOnly = component.filter { $0.isNumber }
+                if digitsOnly.count == 12 && digitsOnly == component {
+                    itemSku = digitsOnly
                     continue
-                }else{
-                    if Double(lineElements[c]) != nil {
-                        itemSku = String(lineElements[c])
-                        c += 1
-                        continue
-                    }else{
-                        if lineElements[c].count == 1 {
-                            c += 1
-                            continue
-                        }
-                        itemName += String(lineElements[c])
-                        c += 1
+                }
+                
+                // Check if it's a price (has decimal point)
+                if component.contains(".") {
+                    let priceClean = component.filter { $0.isNumber || $0 == "." }
+                    if let price = Double(priceClean), priceClean.filter({ $0 == "." }).count == 1 {
+                        itemPrice = price
                         continue
                     }
                 }
+                
+                // Skip single letter tokens (F, X, O, N tax codes)
+                if component.count == 1 && component.first?.isLetter == true {
+                    continue
+                }
+                
+                // Otherwise it's part of the item name
+                if component.count >= 2 && component.contains(where: { $0.isLetter }) {
+                    itemNameParts.append(component)
+                }
             }
-            print (itemName, itemSku, itemPrice as Any)
+            
+            // Create item if we have required data
+            if !itemNameParts.isEmpty, let price = itemPrice {
+                let itemName = itemNameParts.joined(separator: " ")  // ← THIS IS THE KEY FIX!
+                
+                let item = ScannedItem(
+                    name: itemName,
+                    price: price,
+                    sku: itemSku.isEmpty ? nil : itemSku
+                )
+                items.append(item)
+                print(itemName, itemSku, itemPrice as Any)
+                i += 1
+            }
+            
             i += 1
         }
         
