@@ -15,8 +15,18 @@ import Foundation
 class WalmartAPIService {
     
     // TODO: Replace with your actual API key from developer.walmart.com
-    private let apiKey = "YOUR_API_KEY_HERE"
-    private let baseURL = "https://developer.api.walmart.com"
+    // Oxylabs api key 0Ff1ouPK=bDnK_Z
+    //Username smaquois123
+    
+    //curl 'https://realtime.oxylabs.io/v1/queries' --user 'smaquois123:0Ff1ouPK=bDnK_Z' -H 'Content-Type application/json' -d '{
+    //        "source": "walmart_product",
+     //       "product_id": "15296401808",
+     //       "parse": true
+      //  }'
+ /*
+    private let oxyLabsApiKey = "0Ff1ouPK=bDnK_Z"
+    private let oxyLabsUsername = "smaquois123"
+    private let oxyLabsBaseURL = "https://developer.api.walmart.com"
     
     /// Search for products by name
     func searchProducts(query: String) async throws -> [WalmartProduct] {
@@ -27,38 +37,39 @@ class WalmartAPIService {
         
         // Construct the URL
         // Example endpoint - verify with actual Walmart API docs
-        let urlString = "\(baseURL)/v1/search?query=\(encodedQuery)&format=json"
-        guard let url = URL(string: urlString) else {
-            throw WalmartAPIError.invalidURL
-        }
+        //let urlString = "\(baseURL)/v1/search?query=\(encodedQuery)&format=json"
+        //guard let url = URL(string: urlString) else {
+        //    throw WalmartAPIError.invalidURL
+        //}
         
         // Create request with API key
-        var request = URLRequest(url: url)
-        request.addValue(apiKey, forHTTPHeaderField: "apiKey")
-        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        //var request = URLRequest(url: url)
+        //request.addValue(apiKey, forHTTPHeaderField: "apiKey")
+        //request.addValue("application/json", forHTTPHeaderField: "Accept")
         
         // Perform request
-        let (data, response) = try await URLSession.shared.data(for: request)
+        //let (data, response) = try await URLSession.shared.data(for: request)
         
         // Check response
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw WalmartAPIError.invalidResponse
-        }
+        //guard let httpResponse = response as? HTTPURLResponse else {
+        //    throw WalmartAPIError.invalidResponse
+        //}
         
-        guard httpResponse.statusCode == 200 else {
-            throw WalmartAPIError.httpError(statusCode: httpResponse.statusCode)
-        }
+        //guard httpResponse.statusCode == 200 else {
+         //   throw WalmartAPIError.httpError(statusCode: httpResponse.statusCode)
+        //}
         
         // Parse JSON
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        //let decoder = JSONDecoder()
+       // decoder.keyDecodingStrategy = .convertFromSnakeCase
         
-        let searchResult = try decoder.decode(WalmartSearchResponse.self, from: data)
-        return searchResult.items
+        //let searchResult = try decoder.decode(WalmartSearchResponse.self, from: data)
+       // return searchResult.items
     }
     
     /// Get product by UPC barcode
-    func getProductByUPC(_ upc: String) async throws -> WalmartProduct {
+    //func getProductByUPC(_ upc: String) async throws -> WalmartProduct {
+        
         let urlString = "\(baseURL)/v1/items?upc=\(upc)&format=json"
         guard let url = URL(string: urlString) else {
             throw WalmartAPIError.invalidURL
@@ -80,7 +91,9 @@ class WalmartAPIService {
         
         let product = try decoder.decode(WalmartProduct.self, from: data)
         return product
-    }
+         */
+        //return
+    //}
 }
 
 // MARK: - Response Models
@@ -138,7 +151,7 @@ enum WalmartAPIError: LocalizedError {
 }
 
 // MARK: - Integration with PriceComparisonService
-
+/*
 extension PriceComparisonService {
     /// Example of how to integrate Walmart API into price checking
     func checkWalmartPriceWithAPI(itemName: String, upc: String? = nil) async throws -> Double {
@@ -165,7 +178,7 @@ extension PriceComparisonService {
         return firstProduct.salePrice
     }
 }
-
+*/
 /*
  IMPLEMENTATION STEPS:
  

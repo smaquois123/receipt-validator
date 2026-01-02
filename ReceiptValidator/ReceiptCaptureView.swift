@@ -176,10 +176,11 @@ struct ReceiptCaptureView: View {
                     .presentationDetents([.medium, .large])
             }
             .navigationDestination(isPresented: $showResults) {
-                if let scannedData = scannedData {
+                if let scannedData = scannedData, let retailer = selectedRetailer {
                     ReceiptReviewView(
                         scannedData: scannedData,
-                        image: receiptImage
+                        image: receiptImage,
+                        retailer: retailer
                     )
                 }
             }

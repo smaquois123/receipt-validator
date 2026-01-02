@@ -14,16 +14,22 @@ struct ReceiptReviewView: View {
     
     let scannedData: ScannedReceiptData
     let image: UIImage?
+    let retailer: RetailerType
     
     @State private var storeName: String
     @State private var items: [EditableItem]
     @State private var totalAmount: String
     @State private var showRawText = false
     @State private var isSaving = false
+    @State private var showValidation = false
+    @State private var validationResult: ReceiptValidationResult?
     
-    init(scannedData: ScannedReceiptData, image: UIImage?) {
+    @StateObject private var validator = ReceiptValidatorService(fireCrawlAPIKey: AppConfiguration.fireCrawlAPIKey)
+    
+    init(scannedData: ScannedReceiptData, image: UIImage?, retailer: RetailerType) {
         self.scannedData = scannedData
         self.image = image
+        self.retailer = retailer
         
         _storeName = State(initialValue: scannedData.storeName ?? "")
         _items = State(initialValue: scannedData.items.map { EditableItem(name: $0.name, price: $0.price) })
@@ -77,6 +83,47 @@ struct ReceiptReviewView: View {
                 }
             }
             
+            // Validation section
+            Section {
+                Button {
+                    Task {
+                        await validatePrices()
+                    }
+                } label: {
+                    HStack {
+                        if validator.isValidating {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "checkmark.shield.fill")
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Validate Prices")
+                                .font(.body)
+                            Text("Compare receipt prices with current online prices")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .disabled(validator.isValidating || items.isEmpty)
+                
+                if validator.isValidating {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ProgressView(value: validator.validationProgress)
+                        Text("Checking prices... \(Int(validator.validationProgress * 100))%")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Price Validation")
+            } footer: {
+                Text("Uses FireCrawl to check current online prices. This may take a moment.")
+                    .font(.caption2)
+            }
+            
             Section {
                 Button {
                     showRawText.toggle()
@@ -114,6 +161,30 @@ struct ReceiptReviewView: View {
             ToolbarItem(placement: .secondaryAction) {
                 EditButton()
             }
+        }
+        .sheet(isPresented: $showValidation) {
+            if let result = validationResult {
+                ValidationResultsView(validationResult: result)
+            }
+        }
+    }
+    
+    private func validatePrices() async {
+        // Convert EditableItems back to ScannedItems
+        let scannedItems = items.map { ScannedItem(name: $0.name, price: $0.price) }
+        let dataToValidate = ScannedReceiptData(
+            storeName: storeName,
+            items: scannedItems,
+            totalAmount: Double(totalAmount),
+            rawText: scannedData.rawText
+        )
+        
+        do {
+            let result = try await validator.validateReceipt(dataToValidate, retailer: retailer)
+            validationResult = result
+            showValidation = true
+        } catch {
+            print("Validation failed: \(error)")
         }
     }
     
@@ -167,7 +238,8 @@ struct EditableItem: Identifiable {
                 totalAmount: 6.48,
                 rawText: "Sample receipt text"
             ),
-            image: nil
+            image: nil,
+            retailer: .walmart
         )
     }
     .modelContainer(for: Receipt.self, inMemory: true)
