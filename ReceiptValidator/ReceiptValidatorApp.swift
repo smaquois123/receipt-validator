@@ -23,6 +23,24 @@ struct ReceiptValidatorApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
     }()
+    
+    init() {
+        // Log configuration status at startup
+        print("🔑 API Key configured: \(AppConfiguration.isApifyConfigured ? "✅ YES" : "❌ NO")")
+        if AppConfiguration.isApifyConfigured {
+            print("🔑 Key preview: \(String(AppConfiguration.ApifyAPIToken.prefix(10)))...")
+        } else {
+            print("⚠️ \(AppConfiguration.configurationMessage)")
+        }
+    }
+/* debug api key issues
+    var body: some Scene {
+           WindowGroup {
+               ConfigurationTestView()  // Replace ContentView() temporarily
+           }
+           .modelContainer(sharedModelContainer)
+       }
+ */
 
     var body: some Scene {
         WindowGroup {
@@ -30,4 +48,5 @@ struct ReceiptValidatorApp: App {
         }
         .modelContainer(sharedModelContainer)
     }
+
 }

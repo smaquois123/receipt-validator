@@ -16,7 +16,9 @@ final class Receipt {
     var storeLocation: String?
     var totalAmount: Double?
     var imageData: Data?
-    var items: [ReceiptItem]
+    
+    @Relationship(deleteRule: .cascade, inverse: \ReceiptItem.receipt)
+    var items: [ReceiptItem] = []
     
     init(
         id: UUID = UUID(),
@@ -24,8 +26,7 @@ final class Receipt {
         storeName: String? = nil,
         storeLocation: String? = nil,
         totalAmount: Double? = nil,
-        imageData: Data? = nil,
-        items: [ReceiptItem] = []
+        imageData: Data? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -33,7 +34,6 @@ final class Receipt {
         self.storeLocation = storeLocation
         self.totalAmount = totalAmount
         self.imageData = imageData
-        self.items = items
     }
 }
 
@@ -44,6 +44,7 @@ final class ReceiptItem {
     var price: Double
     var quantity: Int
     var upc: String?
+    var sku: String?
     var currentWebPrice: Double?
     var priceComparisonDate: Date?
     var receipt: Receipt?
@@ -64,6 +65,7 @@ final class ReceiptItem {
         price: Double,
         quantity: Int = 1,
         upc: String? = nil,
+        sku: String? = nil,
         currentWebPrice: Double? = nil,
         priceComparisonDate: Date? = nil
     ) {
@@ -72,6 +74,7 @@ final class ReceiptItem {
         self.price = price
         self.quantity = quantity
         self.upc = upc
+        self.sku = sku
         self.currentWebPrice = currentWebPrice
         self.priceComparisonDate = priceComparisonDate
     }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UPCItemDBApiKey</key>
+	<string>YOUR_UPC_ITEM_DB_KEY_HERE</string>
+	<key>BarcodeLookupApiKey</key>
+	<string>YOUR_BARCODE_LOOKUP_KEY_HERE</string>
+	<key>WalmartAPIKey</key>
+	<string>YOUR_WALMART_KEY_HERE</string>
+</dict>
+</plist>

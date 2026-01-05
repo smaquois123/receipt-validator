@@ -1,0 +1,18 @@
+# Config.xcconfig.template
+# 
+# This is a template for your Config.xcconfig file.
+# Copy this file to Config.xcconfig and add your actual API keys.
+#
+# Steps:
+# 1. Copy this file: cp Config.xcconfig.template Config.xcconfig
+# 2. Edit Config.xcconfig and replace YOUR_API_KEY_HERE with your actual key
+# 3. Config.xcconfig is in .gitignore so your key won't be committed
+#
+
+# FireCrawl API Key
+# Sign up at: https://firecrawl.dev
+FIRE_CRAWL_API_KEY = YOUR_API_KEY_HERE
+
+# Add other API keys below as needed
+# WALMART_API_KEY = YOUR_WALMART_KEY
+# OTHER_SERVICE_KEY = YOUR_OTHER_KEY
